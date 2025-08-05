@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: benchmark
+
+jwt:
+  hs512:
+    algorithm: "HS512"
+    signer-key: "J9jZDqYHr5vmx2TAq382Zn8MeZqZjaKq4+6r6T6fJP/L07uRr2nq9BeQC5nf9znKmbXaSvvvxkJMy2V/SHbkxs2V6vIE7CWKXk06k3t9p70="
+
+  rs256:
+    algorithm: "RS256"
+    public-key: classpath:keypem/RSA_PUBLIC_KEY.pem
+    private-key: classpath:keypem/RSA_PRIVATE_KEY.pem
+
