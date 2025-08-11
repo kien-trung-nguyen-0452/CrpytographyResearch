@@ -1,4 +1,7 @@
 package org.example.benchmark.jwt_benchmark;
 
-public class JwtGenerator {
+import java.util.Map;
+
+public interface JwtGenerator {
+    String generate(Map<String, Object> claims);
 }

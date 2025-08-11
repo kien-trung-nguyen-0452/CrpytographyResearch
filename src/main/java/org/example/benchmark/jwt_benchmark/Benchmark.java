@@ -1,4 +1,5 @@
 package org.example.benchmark.jwt_benchmark;
 
-public class Benchmark {
+public interface Benchmark {
+    void run() throws Exception;
 }
