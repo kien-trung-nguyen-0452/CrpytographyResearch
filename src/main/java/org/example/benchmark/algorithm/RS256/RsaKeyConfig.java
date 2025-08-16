@@ -12,19 +12,19 @@ import java.security.PublicKey;
 @RequiredArgsConstructor
 public class RsaKeyConfig {
 
-    @Value("${jwt.rs256.private-key-path}")
-    String privatePath;
+    @Value("${jwt.rs256.public-key}")
+    String publicKeyLocation;
 
-    @Value("${jwt.rs256.public-key-path}")
-    String publicPath;
+    @Value("${jwt.rs256.private-key}")
+    String privateKeyLocation;
 
     @Bean
     PublicKey jwtPublicKey() {
-        return RsaKeyLoader.loadPublic(publicPath);
+        return RsaKeyLoader.loadPublic(publicKeyLocation);
     }
 
     @Bean
     PrivateKey jwtPrivateKey() {
-        return RsaKeyLoader.loadPrivate(privatePath);
+        return RsaKeyLoader.loadPrivate(privateKeyLocation);
     }
 }
