@@ -11,7 +11,7 @@ import java.util.UUID;
 @UtilityClass
 public class JwtClaimsFactory {
 
-    public JWTClaimsSet fromMap(String sub, long validSeconds, Map<String, Object> extra) {
+    public static JWTClaimsSet fromMap(String sub, long validSeconds, Map<String, Object> extra) {
         Instant now = Instant.now();
         JWTClaimsSet.Builder b = new JWTClaimsSet.Builder()
                 .subject(sub)

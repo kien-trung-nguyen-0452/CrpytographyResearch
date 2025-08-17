@@ -15,7 +15,7 @@ import java.util.Base64;
 import java.util.Map;
 
 @Slf4j
-@Component("HS512_Generator")
+@Component
 @RequiredArgsConstructor
 public class HS512_hasher implements JwtGenerator {
 

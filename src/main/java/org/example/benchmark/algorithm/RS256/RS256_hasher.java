@@ -10,12 +10,13 @@ import org.example.benchmark.jwt_benchmark.JwtGenerator;
 import org.example.benchmark.jwt_benchmark.JwtClaimsFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.security.PrivateKey;
 import java.util.Map;
 
 @Slf4j
-@Component("RS256_Generator")
+@Component
 @RequiredArgsConstructor
 public class RS256_hasher implements JwtGenerator {
 

@@ -13,10 +13,9 @@ import java.text.ParseException;
 import java.util.Date;
 
 @Slf4j
-@Component("RS256_Verifier")
+@Component
 @RequiredArgsConstructor
 public class RS256_verifier implements JwtVerifier {
-
     private final PublicKey publicKey;
 
     @Override

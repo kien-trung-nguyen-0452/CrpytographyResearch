@@ -9,6 +9,6 @@ jwt:
 
   rs256:
     algorithm: "RS256"
-    public-key: classpath:keypem/RSA_PUBLIC_KEY.pem
-    private-key: classpath:keypem/RSA_PRIVATE_KEY.pem
+    public-key-path: src/main/java/org/example/benchmark/keypem/RSA_PUBLIC_KEY.pem
+    private-key-path: src/main/java/org/example/benchmark/keypem/RSA_PRIVATE_KEY.pem
 

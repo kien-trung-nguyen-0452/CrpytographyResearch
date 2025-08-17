@@ -12,7 +12,7 @@ import java.util.Base64;
 import java.util.Date;
 
 @Slf4j
-@Component("HS512_Verifier")
+@Component
 @RequiredArgsConstructor
 public class HS512_verifier implements JwtVerifier {
 
@@ -29,7 +29,6 @@ public class HS512_verifier implements JwtVerifier {
             boolean notExpired = s.getJWTClaimsSet().getExpirationTime().after(new Date());
             return sig && notExpired;
         } catch (Exception e) {
-            log.debug("Verify HS512 failed: {}", e.getMessage());
             return false;
         }
     }
