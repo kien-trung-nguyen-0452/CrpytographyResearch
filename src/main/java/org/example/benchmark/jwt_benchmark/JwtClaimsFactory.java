@@ -2,6 +2,7 @@ package org.example.benchmark.jwt_benchmark;
 
 import com.nimbusds.jwt.JWTClaimsSet;
 import lombok.experimental.UtilityClass;
+import org.example.benchmark.model.User;
 
 import java.time.Instant;
 import java.util.Date;
@@ -21,4 +22,13 @@ public class JwtClaimsFactory {
         if (extra != null) extra.forEach(b::claim);
         return b.build();
     }
+    public static JWTClaimsSet fromUser(User user, long validSeconds) {
+        return new JWTClaimsSet.Builder()
+                .subject(user.getUserId())
+                .claim("username", user.getUsername())
+                .expirationTime(new Date(System.currentTimeMillis() + validSeconds * 1000))
+                .issueTime(new Date())
+                .build();
+    }
+
 }

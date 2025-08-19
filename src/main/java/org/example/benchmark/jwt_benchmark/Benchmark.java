@@ -28,12 +28,9 @@ public class Benchmark {
     private final RS256_hasher rs256Hasher;
     private final RS256_verifier rs256Verifier;
 
-    /**
-     * Chạy benchmark cho toàn bộ user với 1 thuật toán, trả về kết quả tổng hợp
-     */
     public BenchmarkResult runBenchmark(int userNum, String algorithm) {
-        // 1. Giả lập user
-        List<User> users = UserSimulator.getSimulationModels(userNum);
+
+        Queue<User> users = UserSimulator.getSimulationModels(userNum);
 
         // 2. Thread pool = số core CPU
         int cores = Runtime.getRuntime().availableProcessors();
@@ -71,7 +68,8 @@ public class Benchmark {
         sampler.stop();
         try {
             samplerThread.join();
-        } catch (InterruptedException ignored) {}
+        } catch (InterruptedException ignored) {
+        }
 
         double avgTime = (double) total / users.size();
 
@@ -103,9 +101,7 @@ public class Benchmark {
         return result;
     }
 
-    /**
-     * Xử lý 1 user: tạo token + verify, trả về thời gian nano giây
-     */
+
     private long processUser(User user, String algorithm) {
         long start = System.nanoTime();
         boolean verified;
@@ -132,9 +128,7 @@ public class Benchmark {
         return runtime.totalMemory() - runtime.freeMemory();
     }
 
-    /**
-     * Xuất kết quả ra file CSV
-     */
+
     private void exportCsv(List<BenchmarkResult> results, String fileName) {
         try (PrintWriter pw = new PrintWriter(new File(fileName))) {
             pw.println(BenchmarkResult.csvHeader());
@@ -146,9 +140,6 @@ public class Benchmark {
         }
     }
 
-    /**
-     * Thread sampler đo CPU và RAM định kỳ
-     */
     private class CpuRamSampler implements Runnable {
         private final OperatingSystemMXBean osBean =
                 (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
@@ -156,15 +147,47 @@ public class Benchmark {
         private final List<Double> ramSamples = new ArrayList<>();
         private volatile boolean running = true;
 
+        // để tính CPU load thủ công
+        private long lastCpuTime = 0;
+        private long lastSampleTime = 0;
+
         @Override
         public void run() {
             while (running) {
-                cpuSamples.add(osBean.getProcessCpuLoad() * 100);
-                ramSamples.add(getUsedMemory() / (1024.0 * 1024.0)); // MB
+                double cpuPercent = calculateCpuPercent();
+                log.info(String.format("CPU=%.10f%%", cpuPercent));
+                cpuSamples.add(cpuPercent);
+
+                double usedRamMb = getUsedMemory() / (1024.0 * 1024.0);
+                log.info(String.format("RAM=%.2f MB", usedRamMb));
+                ramSamples.add(usedRamMb);
+
                 try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ignored) {}
+                    Thread.sleep(500); // lấy mẫu mỗi 0.5s để dữ liệu ổn định
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
             }
+        }
+
+        private double calculateCpuPercent() {
+            long cpuTime = osBean.getProcessCpuTime(); // ns
+            long now = System.nanoTime();
+
+            if (lastCpuTime == 0 || lastSampleTime == 0) {
+                lastCpuTime = cpuTime;
+                lastSampleTime = now;
+                return 0.0;
+            }
+
+            long cpuDiff = cpuTime - lastCpuTime;
+            long timeDiff = now - lastSampleTime;
+
+            lastCpuTime = cpuTime;
+            lastSampleTime = now;
+
+            int cores = osBean.getAvailableProcessors();
+            return (cpuDiff * 100.0) / (timeDiff * cores);
         }
 
         public void stop() {
@@ -172,11 +195,18 @@ public class Benchmark {
         }
 
         public double getAvgCpu() {
-            return cpuSamples.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            return cpuSamples.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
         }
 
         public double getAvgRam() {
-            return ramSamples.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            return ramSamples.stream()
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
         }
     }
+
 }

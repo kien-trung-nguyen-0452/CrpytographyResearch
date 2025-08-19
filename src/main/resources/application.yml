@@ -1,7 +1,10 @@
 spring:
   application:
     name: benchmark
-
+  security:
+    user:
+      name: admin
+      password: admin
 jwt:
   hs512:
     algorithm: "HS512"

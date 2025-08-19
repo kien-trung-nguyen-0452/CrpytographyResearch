@@ -4,7 +4,6 @@ import lombok.experimental.UtilityClass;
 import org.example.benchmark.model.User;
 
 import java.util.Queue;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -16,6 +15,7 @@ public class UserSimulator {
         for (int num = 0; num < userNum; num++) {
             String userId = UUID.randomUUID().toString();
             String userName = "user" + num;
+
             User model = User.builder()
                     .userId(userId)
                     .username(userName)

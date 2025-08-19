@@ -1,0 +1,2 @@
+Algorithm,UserNumber,Verified,TotalTime(ns),AvgTime(ns),MinTime(ns),MaxTime(ns),CPU(%),RAM(MB),Timestamp
+HS512,1000000,true,157263314500,157263,31,84900,115768600,87,14,981,16,1755576263777
