@@ -1,5 +1,6 @@
 package org.example.benchmark.jwt_benchmark;
 
+import com.sun.management.OperatingSystemMXBean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.benchmark.algorithm.HS512.HS512_hasher;
@@ -11,11 +12,11 @@ import org.example.benchmark.model.User;
 import org.example.benchmark.ulti.UserSimulator;
 import org.springframework.stereotype.Service;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
+import java.io.File;
+import java.io.PrintWriter;
+import java.lang.management.ManagementFactory;
+import java.util.*;
+import java.util.concurrent.*;
 
 @Slf4j
 @Service
@@ -27,76 +28,155 @@ public class Benchmark {
     private final RS256_hasher rs256Hasher;
     private final RS256_verifier rs256Verifier;
 
-    public List<BenchmarkResult> runBenchmark(int userNum) {
-        Queue<User> users = UserSimulator.getSimulationModels(userNum);
-        List<BenchmarkResult> results = new ArrayList<>();
+    /**
+     * Chạy benchmark cho toàn bộ user với 1 thuật toán, trả về kết quả tổng hợp
+     */
+    public BenchmarkResult runBenchmark(int userNum, String algorithm) {
+        // 1. Giả lập user
+        List<User> users = UserSimulator.getSimulationModels(userNum);
 
-        // Chạy HS512
-        results.addAll(runForAlgorithm("HS512", users));
+        // 2. Thread pool = số core CPU
+        int cores = Runtime.getRuntime().availableProcessors();
+        ExecutorService executor = Executors.newFixedThreadPool(cores);
 
-        // Chạy RS256
-        results.addAll(runForAlgorithm("RS256", users));
+        // 3. Sampling CPU/RAM song song
+        CpuRamSampler sampler = new CpuRamSampler();
+        Thread samplerThread = new Thread(sampler);
+        samplerThread.start();
 
-        // Xuất CSV
-        exportCsv(results, "benchmark_results.csv");
-
-        return results;
-    }
-
-    private List<BenchmarkResult> runForAlgorithm(String algorithm, Queue<User> users) {
-        List<BenchmarkResult> results = new ArrayList<>();
-
+        // 4. Chạy benchmark song song
+        List<Future<Long>> futures = new ArrayList<>();
         for (User user : users) {
-            boolean verified = true;
-            long start = System.nanoTime();
+            futures.add(executor.submit(() -> processUser(user, algorithm)));
+        }
+
+        long min = Long.MAX_VALUE, max = Long.MIN_VALUE, total = 0;
+        boolean allVerified = true;
+
+        for (Future<Long> f : futures) {
             try {
-                String token;
-                if ("HS512".equals(algorithm)) {
-                    token = hs512Hasher.generate(userToClaims(user));
-                    verified = hs512Verifier.verify(token);
-                } else {
-                    token = rs256Hasher.generate(userToClaims(user));
-                    verified = rs256Verifier.verify(token);
-                }
+                long time = f.get();
+                total += time;
+                min = Math.min(min, time);
+                max = Math.max(max, time);
             } catch (Exception e) {
-                verified = false;
-                log.error("Error hashing/verifying {} for user {}: {}", algorithm, user.getUsername(), e.getMessage());
+                allVerified = false;
+                log.error("Error executing task", e);
             }
-            long end = System.nanoTime();
-            long totalTime = end - start;
-
-            results.add(new BenchmarkResult(
-                    algorithm,
-                    user.getUsername(),
-                    verified,
-                    totalTime,
-                    (double) totalTime,
-                    1,
-                    user.getCpuUsage(),
-                    user.getRamUsage()
-            ));
         }
 
-        return results;
+        executor.shutdown();
+
+        // dừng sampler
+        sampler.stop();
+        try {
+            samplerThread.join();
+        } catch (InterruptedException ignored) {}
+
+        double avgTime = (double) total / users.size();
+
+        // 5. Lấy CPU/RAM trung bình
+        double avgCpu = sampler.getAvgCpu();
+        double avgRam = sampler.getAvgRam();
+
+        // 6. Tạo BenchmarkResult tổng hợp
+        BenchmarkResult result = BenchmarkResult.builder()
+                .algorithm(algorithm)
+                .userNumber(userNum)
+                .verified(allVerified)
+                .totalTimeNano(total)
+                .avgTimeNano(avgTime)
+                .minTimeNano(min)
+                .maxTimeNano(max)
+                .cpuUsage(avgCpu)
+                .ramUsage(avgRam)
+                .timestamp(System.currentTimeMillis())
+                .build();
+
+        // 7. Xuất CSV
+        exportCsv(Collections.singletonList(result), "benchmark_results_" + algorithm + ".csv");
+
+        log.info("Benchmark finished for {} users with {}. TotalTime={} ns, AvgTime={} ns, Min={} ns, Max={} ns, CPU={}%, RAM={} MB",
+                userNum, algorithm, total, avgTime, min, max,
+                String.format("%.2f", avgCpu), String.format("%.2f", avgRam));
+
+        return result;
     }
 
+    /**
+     * Xử lý 1 user: tạo token + verify, trả về thời gian nano giây
+     */
+    private long processUser(User user, String algorithm) {
+        long start = System.nanoTime();
+        boolean verified;
+        switch (algorithm.toUpperCase()) {
+            case "HS512" -> {
+                String tokenHS = hs512Hasher.generate(user);
+                verified = hs512Verifier.verify(tokenHS);
+            }
+            case "RS256" -> {
+                String tokenRS = rs256Hasher.generate(user);
+                verified = rs256Verifier.verify(tokenRS);
+            }
+            default -> throw new IllegalArgumentException("Unsupported algorithm: " + algorithm);
+        }
+        long end = System.nanoTime();
+        return end - start;
+    }
+
+    /**
+     * Lấy RAM đang sử dụng (bytes)
+     */
+    private long getUsedMemory() {
+        Runtime runtime = Runtime.getRuntime();
+        return runtime.totalMemory() - runtime.freeMemory();
+    }
+
+    /**
+     * Xuất kết quả ra file CSV
+     */
     private void exportCsv(List<BenchmarkResult> results, String fileName) {
-        try (FileWriter writer = new FileWriter(fileName)) {
-            writer.write(BenchmarkResult.csvHeader() + "\n");
+        try (PrintWriter pw = new PrintWriter(new File(fileName))) {
+            pw.println(BenchmarkResult.csvHeader());
             for (BenchmarkResult r : results) {
-                writer.write(r.toCsv() + "\n");
+                pw.println(r.toCsv());
             }
-            log.info("Benchmark results exported to {}", fileName);
-        } catch (IOException e) {
-            log.error("Error writing CSV: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("Error exporting CSV", e);
         }
     }
 
-    private java.util.Map<String, Object> userToClaims(User user) {
-        java.util.Map<String, Object> claims = new java.util.HashMap<>();
-        claims.put("sub", user.getUsername());
-        claims.put("cpu", user.getCpuUsage());
-        claims.put("ram", user.getRamUsage());
-        return claims;
+    /**
+     * Thread sampler đo CPU và RAM định kỳ
+     */
+    private class CpuRamSampler implements Runnable {
+        private final OperatingSystemMXBean osBean =
+                (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+        private final List<Double> cpuSamples = new ArrayList<>();
+        private final List<Double> ramSamples = new ArrayList<>();
+        private volatile boolean running = true;
+
+        @Override
+        public void run() {
+            while (running) {
+                cpuSamples.add(osBean.getProcessCpuLoad() * 100);
+                ramSamples.add(getUsedMemory() / (1024.0 * 1024.0)); // MB
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ignored) {}
+            }
+        }
+
+        public void stop() {
+            running = false;
+        }
+
+        public double getAvgCpu() {
+            return cpuSamples.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        }
+
+        public double getAvgRam() {
+            return ramSamples.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        }
     }
 }

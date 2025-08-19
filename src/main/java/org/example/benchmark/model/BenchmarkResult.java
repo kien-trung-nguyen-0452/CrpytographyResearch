@@ -1,34 +1,46 @@
 package org.example.benchmark.model;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.io.Serializable;
 
 @Data
+@NoArgsConstructor
 @AllArgsConstructor
-public class BenchmarkResult {
+@Builder
+public class BenchmarkResult implements Serializable {
     private String algorithm;
-    private String UserNumber;
+    private int userNumber;        // số lượng user giả lập
     private boolean verified;
     private long totalTimeNano;
     private double avgTimeNano;
-    private int iterations;
-    private double cpuUsage;     // % CPU sử dụng
-    private long ramUsage;       // RAM sử dụng (bytes)
+    private long minTimeNano;
+    private long maxTimeNano;
+    private double cpuUsage;       // % CPU sử dụng trung bình
+    private double ramUsage;       // MB RAM sử dụng trung bình
+    private long timestamp;        // thời điểm chạy benchmark (epoch millis)
 
+    // Xuất ra 1 dòng CSV
     public String toCsv() {
-        return String.format("%s,%s,%s,%d,%.2f,%d,%.2f,%d",
+        return String.format("%s,%d,%b,%d,%.2f,%d,%d,%.2f,%.2f,%d",
                 algorithm,
-                UserNumber,
+                userNumber,
                 verified,
                 totalTimeNano,
                 avgTimeNano,
-                iterations,
+                minTimeNano,
+                maxTimeNano,
                 cpuUsage,
-                ramUsage
+                ramUsage,
+                timestamp
         );
     }
 
+    // Header CSV
     public static String csvHeader() {
-        return "Algorithm,UserNumber,Verified,TotalTime(ns),AvgTime(ns),Iterations,CPU(%),RAM(bytes)";
+        return "Algorithm,UserNumber,Verified,TotalTime(ns),AvgTime(ns),MinTime(ns),MaxTime(ns),CPU(%),RAM(MB),Timestamp";
     }
 }

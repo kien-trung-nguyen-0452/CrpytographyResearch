@@ -7,6 +7,4 @@ import lombok.Data;
 public class User {
     private String userId;
     private String username;
-    private double cpuUsage; // % CPU
-    private long ramUsage;   // RAM (bytes)
 }

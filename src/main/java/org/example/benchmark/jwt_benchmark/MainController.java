@@ -12,8 +12,8 @@ import java.util.List;
 public class MainController {
 
     private final Benchmark benchmark;
-    @GetMapping("/run/{userNum}")
-    public List<BenchmarkResult> runBenchmark(@PathVariable int userNum) {
-        return benchmark.runBenchmark(userNum);
+    @GetMapping("/run/{algorithm}/{userNum}")
+    public List<BenchmarkResult> runBenchmark(@PathVariable int userNum, @PathVariable String algorithm) {
+        return benchmark.runBenchmark(userNum, algorithm);
     }
 }
